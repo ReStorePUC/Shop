@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  shop:
+    image: restore/shop:latest
+    deploy:
+      replicas: 1
+    networks:
+      main:
+        aliases:
+          - shop
+networks:
+  main:
+    external: true
