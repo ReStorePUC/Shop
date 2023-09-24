@@ -3,7 +3,8 @@ package controller
 import (
 	"context"
 	"errors"
-	pb "github.com/ReStorePUC/protobucket/generated"
+	paymentpb "github.com/ReStorePUC/protobucket/payment"
+	pb "github.com/ReStorePUC/protobucket/user"
 	"github.com/restore/shop/config"
 	"github.com/restore/shop/entity"
 	"go.uber.org/zap"
@@ -12,7 +13,7 @@ import (
 )
 
 type repository interface {
-	CreateRequest(ctx context.Context, request *entity.Request) (int, error)
+	CreateRequest(ctx context.Context, request *entity.Request) error
 	UpdateRequest(ctx context.Context, id int, request *entity.Request) error
 	SearchRequest(ctx context.Context, id int, status string, init, end time.Time) ([]entity.Request, error)
 
@@ -25,36 +26,54 @@ type repository interface {
 type Shop struct {
 	repo    repository
 	service pb.UserClient
+	payment paymentpb.PaymentClient
 }
 
-func NewShop(r repository, s pb.UserClient) *Shop {
+func NewShop(r repository, s pb.UserClient, p paymentpb.PaymentClient) *Shop {
 	return &Shop{
 		repo:    r,
 		service: s,
+		payment: p,
 	}
 }
 
-func (s *Shop) CreateRequest(ctx context.Context, request *entity.Request) (int, error) {
+func (s *Shop) CreateRequest(ctx context.Context, request *entity.Create) (string, error) {
 	log := zap.NewNop()
 
-	user := ctx.Value(config.EmailHeader)
-	if user == "" {
-		log.Error(
-			"unauthorized action",
-		)
-		return 0, errors.New("unauthorized action")
+	items := []*paymentpb.Item{}
+	for _, item := range request.Items {
+		items = append(items, &paymentpb.Item{
+			Title:     item.ItemName,
+			Quantity:  1,
+			UnitPrice: float32(item.Price + item.Tax),
+		})
 	}
 
-	id, err := s.repo.CreateRequest(ctx, request)
+	payment, err := s.payment.CreatePayment(ctx, &paymentpb.CreatePaymentRequest{
+		Items: items,
+	})
 	if err != nil {
 		log.Error(
-			"error to create request",
+			"error to create payment",
 			zap.Error(err),
 		)
-		return 0, err
+		return "", err
 	}
 
-	return id, nil
+	for _, item := range request.Items {
+		item.PaymentID = payment.Id
+		item.Status = "preparing"
+		err = s.repo.CreateRequest(ctx, &item)
+		if err != nil {
+			log.Error(
+				"error to create request",
+				zap.Error(err),
+			)
+			return "", err
+		}
+	}
+
+	return payment.Id, nil
 }
 
 func (s *Shop) UpdateRequest(ctx context.Context, id string, request *entity.Request) error {

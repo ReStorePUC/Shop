@@ -9,7 +9,7 @@ import (
 )
 
 type controller interface {
-	CreateRequest(ctx context.Context, request *entity.Request) (int, error)
+	CreateRequest(ctx context.Context, request *entity.Create) (string, error)
 	UpdateRequest(ctx context.Context, id string, request *entity.Request) error
 	SearchRequest(ctx context.Context, storeID, status, initialDate, endDate string) ([]entity.Request, error)
 
@@ -33,7 +33,7 @@ func NewShop(c controller) *Shop {
 func (s *Shop) CreateRequest(c *gin.Context) {
 	ctx := context.WithValue(c.Request.Context(), config.EmailHeader, c.GetHeader(config.EmailHeader))
 
-	var request entity.Request
+	var request entity.Create
 	if err := c.BindJSON(&request); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, struct {
 			Error string
@@ -54,9 +54,9 @@ func (s *Shop) CreateRequest(c *gin.Context) {
 	}
 
 	c.IndentedJSON(http.StatusCreated, struct {
-		ID int
+		ID string
 	}{
-		id,
+		ID: id,
 	})
 }
 

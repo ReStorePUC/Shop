@@ -17,12 +17,12 @@ func NewShop(db *gorm.DB) *Shop {
 	}
 }
 
-func (s *Shop) CreateRequest(ctx context.Context, request *entity.Request) (int, error) {
+func (s *Shop) CreateRequest(ctx context.Context, request *entity.Request) error {
 	result := s.db.Create(request)
 	if result.Error != nil {
-		return 0, result.Error
+		return result.Error
 	}
-	return request.ID, nil
+	return nil
 }
 
 func (s *Shop) UpdateRequest(ctx context.Context, id int, request *entity.Request) error {

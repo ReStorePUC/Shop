@@ -1,7 +1,8 @@
 package main
 
 import (
-	pb "github.com/ReStorePUC/protobucket/generated"
+	paymentpb "github.com/ReStorePUC/protobucket/payment"
+	pb "github.com/ReStorePUC/protobucket/user"
 	"github.com/gin-gonic/gin"
 	"github.com/restore/shop/config"
 	"github.com/restore/shop/controller"
@@ -21,15 +22,22 @@ func main() {
 		panic(err)
 	}
 
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("user:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
 	c := pb.NewUserClient(conn)
 
+	paymentConn, err := grpc.Dial("payment:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer paymentConn.Close()
+	pc := paymentpb.NewPaymentClient(paymentConn)
+
 	sRepo := repository.NewShop(db)
-	sController := controller.NewShop(sRepo, c)
+	sController := controller.NewShop(sRepo, c, pc)
 	sHandler := handler.NewShop(sController)
 
 	router := gin.Default()

@@ -6,6 +6,7 @@ import "time"
 type Request struct {
 	ID        int       `json:"id" gorm:"primaryKey"`
 	PaymentID string    `json:"payment_id"`
+	ItemName  string    `json:"item_name"`
 	Price     float64   `json:"price"`
 	Tax       float64   `json:"tax"`
 	Track     string    `json:"track"`
@@ -13,4 +14,8 @@ type Request struct {
 	CreatedAt time.Time `json:"created_at"`
 	StoreID   int       `json:"store_id"`
 	ProductID int       `json:"product_id"`
+}
+
+type Create struct {
+	Items []Request `json:"items"`
 }
