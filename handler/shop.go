@@ -11,7 +11,9 @@ import (
 type controller interface {
 	CreateRequest(ctx context.Context, request *entity.Create) (string, error)
 	UpdateRequest(ctx context.Context, id string, request *entity.Request) error
+	ConfirmRequest(ctx context.Context, paymentID string) error
 	SearchRequest(ctx context.Context, storeID, status, initialDate, endDate string) ([]entity.Request, error)
+	SearchProfileRequest(ctx context.Context, profileID, status, initialDate, endDate string) ([]entity.Request, error)
 
 	CreatePayment(ctx context.Context, payment *entity.Payment) (int, error)
 	UpdatePayment(ctx context.Context, id string, payment *entity.Payment) error
@@ -128,6 +130,66 @@ func (s *Shop) SearchRequest(c *gin.Context) {
 	}
 
 	c.IndentedJSON(http.StatusOK, result)
+}
+
+// SearchProfileRequest searches for Requests.
+func (s *Shop) SearchProfileRequest(c *gin.Context) {
+	ctx := context.WithValue(c.Request.Context(), config.EmailHeader, c.GetHeader(config.EmailHeader))
+
+	profileID := c.Param("profileID")
+	if profileID == "" {
+		c.IndentedJSON(http.StatusBadRequest, struct {
+			Error string
+		}{
+			"invalid ID",
+		})
+		return
+	}
+
+	result, err := s.controller.SearchProfileRequest(
+		ctx,
+		profileID,
+		c.Query("status"),
+		c.Query("initialDate"),
+		c.Query("endDate"),
+	)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, struct {
+			Error string
+		}{
+			err.Error(),
+		})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, result)
+}
+
+// ConfirmRequest confirms the Requests.
+func (s *Shop) ConfirmRequest(c *gin.Context) {
+	ctx := context.WithValue(c.Request.Context(), config.EmailHeader, c.GetHeader(config.EmailHeader))
+
+	paymentID := c.Param("paymentID")
+	if paymentID == "" {
+		c.IndentedJSON(http.StatusBadRequest, struct {
+			Error string
+		}{
+			"invalid ID",
+		})
+		return
+	}
+
+	err := s.controller.ConfirmRequest(ctx, paymentID)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, struct {
+			Error string
+		}{
+			err.Error(),
+		})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, struct{}{})
 }
 
 // CreatePayment creates a new Payment.

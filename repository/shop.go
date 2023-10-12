@@ -42,9 +42,53 @@ func (s *Shop) UpdateRequest(ctx context.Context, id int, request *entity.Reques
 	return nil
 }
 
+func (s *Shop) ConfirmRequests(ctx context.Context, paymentID string) error {
+	res := s.db.Model(&entity.Request{}).
+		Where("payment_id = ?", paymentID).
+		Update("status", "preparing")
+	if res.Error != nil {
+		return res.Error
+	}
+
+	return nil
+}
+
+func (s *Shop) GetRequestByPayment(ctx context.Context, paymentID string) ([]entity.Request, error) {
+	var result []entity.Request
+	query := s.db.Where("payment_id = ?", paymentID)
+	res := query.Find(&result)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return result, nil
+}
+
 func (s *Shop) SearchRequest(ctx context.Context, id int, status string, init, end time.Time) ([]entity.Request, error) {
 	var result []entity.Request
-	query := s.db.Where("store_id = ?", id)
+	query := s.db.Where("store_id = ? AND status != ?", id, "created")
+
+	if status != "" {
+		query.Where("status = ?", status)
+	}
+
+	t := time.Time{}
+	if init != t {
+		query.Where("created_at > ?", init)
+	}
+	if end != t {
+		query.Where("created_at < ?", end)
+	}
+
+	res := query.Find(&result)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return result, nil
+}
+
+func (s *Shop) SearchProfileRequest(ctx context.Context, id int, status string, init, end time.Time) ([]entity.Request, error) {
+	var result []entity.Request
+	query := s.db.Where("user_id = ? AND status != ?", id, "created")
 
 	if status != "" {
 		query.Where("status = ?", status)
